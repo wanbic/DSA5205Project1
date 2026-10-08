@@ -1,0 +1,161 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage[hidelinks]{hyperref}
+\usepackage{microtype}
+
+\title{DSA5205 Project 1: Machine Learning in Finance}
+\author{xxx  \\ A0123456R}
+\date{October 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This report studies model complexity, regularization, and out-of-sample performance in return prediction. Task~1 reproduces the misspecified ridge experiment of Kelly, Malamud, and Zhou (2024); the remaining sections document the extensions, hidden-data predictions, and financial interpretation of neural-network generalization.
+\end{abstract}
+
+\section{Task 1: Misspecified Simulation with Ridge}
+
+\subsection{Design and implementation}
+
+Following Kelly, Malamud, and Zhou~\cite{kelly2024}, returns are generated as
+\begin{equation}
+    R_{t+1}=S_t'\beta^*+\varepsilon_{t+1},
+    \qquad S_t\sim\mathcal N(0,I_P),
+    \qquad \varepsilon_{t+1}\sim\mathcal N(0,1).
+\end{equation}
+The vector $\beta^*$ is drawn from an isotropic Gaussian distribution and normalized so that $\|\beta^*\|_2^2=b^*=0.2$. The data-generating complexity is fixed at $c=P/T_{\mathrm{tr}}=10$. In each replication, one random permutation of the $P$ columns is held fixed across the full grid. For a given revealed fraction $q$, only the first $P_1=qP$ permuted columns are observed, so observed complexity is $cq=P_1/T_{\mathrm{tr}}$. This nested observation rule creates misspecification while preserving the sufficiently mixed setting.
+
+The simulation parameters are listed in Table~\ref{tab:task1-parameters}. Data generation is implemented by \texttt{generate\_data()} in \texttt{task1/generate\_data.py}; the experiment loop and nested feature selection are in \texttt{task1/task1.py}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Task 1 simulation parameters.}
+    \label{tab:task1-parameters}
+    \begin{tabular}{ll}
+        \toprule
+        Parameter & Value \\
+        \midrule
+        Base seed and replications & $5205$; $50$ \\
+        Training and test sizes & $T_{\mathrm{tr}}=500$; $T_{\mathrm{te}}=5000$ \\
+        DGP complexity and dimension & $c=10$; $P=5000$ \\
+        Signal strength and noise & $b^*=0.2$; $\sigma_\varepsilon=1$ \\
+        $cq$ grid & $\{0.50,0.75,0.90,0.95,0.98,1.02,1.05,1.10,$ \\
+        & $1.25,1.50,2,3,5,7,10\}$ \\
+        Ridge grid & $z\in\{0,0.01,0.1,1,10,50\}$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+For each observed block, ridge is estimated without an intercept:
+\begin{equation}
+    \widehat\beta(z)
+    =\left(X'X+zT_{\mathrm{tr}}I\right)^{-1}X'y.
+\end{equation}
+At $z=0$, the implementation uses the Moore--Penrose pseudoinverse. For $z>0$, it solves the primal system when $P_1\leq T_{\mathrm{tr}}$ and the equivalent dual system otherwise; see \texttt{fit\_ridge()} in \texttt{task1/fit\_ridge.py}.
+
+All quantities are evaluated on the independent test set. With $\widehat R_{t+1}=S_t'\widehat\beta$ and timing return $R^\pi_{t+1}=\widehat R_{t+1}R_{t+1}$, the reported metrics are
+\begin{align}
+R^2_{\mathrm{paper}}
+    &=1-\frac{\mathbb E[(R_{t+1}-\widehat R_{t+1})^2]}
+                 {\mathbb E[R_{t+1}^2]}, \\
+\mathbb E[R^\pi_{t+1}]
+    &=\mathbb E[\widehat R_{t+1}R_{t+1}], \\
+\mathrm{SR}
+    &=\frac{\mathbb E[R^\pi_{t+1}]}
+            {\sqrt{\mathbb E[(R^\pi_{t+1})^2]}},
+\qquad
+\|\widehat\beta(z)\|_2.
+\end{align}
+Their sample analogues are computed by \texttt{calculate\_metrics()} in \texttt{task1/test\_metrics.py}.
+
+\subsection{Results}
+
+Figure~\ref{fig:task1-results} reports averages over the 50 replications. It is the finite-sample analogue of Figures 4--6 in Kelly, Malamud, and Zhou~\cite{kelly2024}, which plot population limits rather than simulated estimates. The ridgeless specification displays the expected instability around the interpolation threshold $cq=1$: $R^2_{\mathrm{paper}}$ falls to about $-50$ at $cq=0.98$--$1.02$, while $\|\widehat\beta\|_2$ rises above $7.5$. These extremes, and timing returns above $0.02$, are clipped by the displayed axes. As in the paper's Figure 4, both effects abate for $cq>1$ because overparameterized minimum-norm regression supplies implicit regularization. Explicit shrinkage smooths the interpolation singularity; $z=10$ or $50$ keeps $R^2_{\mathrm{paper}}$ close to zero and the coefficient norm small.
+
+The expected-return panel has the same broad message as the left panel of the paper's Figure 5: very simple models have low timing returns because they observe too little of the DGP, and additional features improve approximation. In the population benchmark, ridgeless expected return rises to $b^*/c=0.02$ at $cq=1$ and is exactly flat thereafter. The simulation approaches roughly $0.018$--$0.019$ away from interpolation, but overshoots and fluctuates near $cq=1$; for example, its ridgeless mean is $0.0347$ at $cq=1.02$. This difference is consistent with finite training and test samples and the nonlinear effect of near-singular estimates, rather than a contradiction of the limiting result. The paper's Figure 5 also reports portfolio volatility; the project instead requires the Sharpe ratio and coefficient norm, which expose the same interpolation instability through risk adjustment and parameter dilation.
+
+The Sharpe panel closely reproduces the paper's Figure 6. Ridgeless and lightly regularized curves show ``double ascent'': Sharpe rises at low complexity, dips near interpolation as coefficient and portfolio risk explode, and rises again for $cq>1$. Nontrivial shrinkage removes most of this dip, producing an approximately permanent ascent. At $cq=10$, all curves converge to about $0.049$--$0.050$; the largest value on the simulated grid is $0.0505$ for $z=50$. For $\Psi=I$, the paper's optimal shrinkage is
+\begin{equation}
+    z^*(q)=\frac{c\{1+b^*(1-q)\}}{b^*}=60-10q,
+\end{equation}
+so $z=50$ is exactly optimal at $q=1$ and is close to the theoretical range over the grid. Theorem 1's monotone, concave improvement applies to this optimally adjusted $z^*(q)$, not to every fixed-$z$ curve. Overall, the finite-sample experiment supports the virtue-of-complexity mechanism: under misspecification and sufficient mixing, observing more signals improves risk-adjusted timing performance even when conventional out-of-sample $R^2$ remains negative.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[t]{0.49\textwidth}
+        \includegraphics[width=\linewidth]{task1/result_20261007_202024/r2_paper_vs_cq.png}
+        \caption{$R^2_{\mathrm{paper}}$.}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.49\textwidth}
+        \includegraphics[width=\linewidth]{task1/result_20261007_202024/expected_timing_return_vs_cq.png}
+        \caption{Expected timing return.}
+    \end{subfigure}
+
+    \begin{subfigure}[t]{0.49\textwidth}
+        \includegraphics[width=\linewidth]{task1/result_20261007_202024/sharpe_paper_vs_cq.png}
+        \caption{Paper Sharpe ratio.}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.49\textwidth}
+        \includegraphics[width=\linewidth]{task1/result_20261007_202024/beta_norm_vs_cq.png}
+        \caption{Coefficient norm.}
+    \end{subfigure}
+    \caption{Finite-sample counterparts of Figures 4--6 in Kelly, Malamud, and Zhou~\cite{kelly2024}, averaged over 50 replications. The dashed line marks $cq=1$; displayed axes clip the interpolation extremes. All four panels are produced by \texttt{plot\_results()} in \texttt{task1/plot\_results.py} from \texttt{results.csv}.}
+    \label{fig:task1-results}
+\end{figure}
+
+\section{Task 2: Alternative Model}
+
+\subsection{Method and experimental control}
+% Describe the proposed model and explain how the Task 1 data, splits, and cq grid are reused.
+
+\subsection{Results and comparison with ridge}
+% Report the same four metrics and explain deviations from the ridge benchmark.
+
+\section{Task 3: Predictions for Data Sets A, B, and C}
+
+\subsection{Validation and model selection}
+% Document feature checks, internal validation, candidate models, and the selection rule.
+
+\subsection{Final models and prediction files}
+% State the selected model and settings for A, B, and C, plus exact output filenames.
+
+\section{Task 4: Generalization and Overfitting in Neural Networks}
+
+\subsection{Main finding of Montanari and Urbani}
+% Summarize the dynamical decoupling result in self-contained language.
+
+\subsection{Implication for financial machine learning}
+% Develop one focused application, argument, or experiment, including limitations.
+
+\section{Task 5: Video and Reproducibility}
+
+% Add the video link and summarize clean-run commands and generated outputs.
+
+\section{Conclusion}
+
+% Summarize the main empirical and conceptual lessons across Tasks 1--4.
+
+\begin{thebibliography}{9}
+
+\bibitem[Kelly et~al.(2024)Kelly, Malamud, and Zhou]{kelly2024}
+Kelly, B. T., Malamud, S., and Zhou, K. (2024).
+The virtue of complexity in return prediction.
+\emph{Journal of Finance}, 79(1), 459--503.
+
+\bibitem[Montanari and Urbani(2025)]{montanari2025}
+Montanari, A. and Urbani, P. (2025).
+Dynamical decoupling of generalization and overfitting in large two-layer networks.
+\emph{Advances in Neural Information Processing Systems}, 38.
+
+\end{thebibliography}
+
+\end{document}
