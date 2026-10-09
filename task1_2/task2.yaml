@@ -24,23 +24,14 @@ observed_complexity_grid:
   - 7.00
   - 10.00
 
-ridge_z_grid:
-  - 0.0
-  - 0.01
-  - 0.1
-  - 1.0
-  - 10.0
-  - 50.0
-
 # sklearn Lasso objective:
 # (1 / (2 * T_train)) * ||y - X beta||_2^2 + alpha * ||beta||_1
 lasso_alpha_grid:
-  - 0.0001
-  - 0.0003
   - 0.001
   - 0.003
   - 0.01
   - 0.03
+  - 0.1
 
-lasso_max_iter: 10000
-lasso_tolerance: 0.0001
+lasso_max_iter: 3000
+lasso_tolerance: 0.001

@@ -10,13 +10,13 @@ from plot_results import plot_results
 from test_metrics import calculate_metrics
 
 # read config
-config_path = Path(__file__).with_name("task1_2.yaml")
+config_path = Path(__file__).with_name("task1.yaml")
 with config_path.open("r", encoding="utf-8") as file:
     config = yaml.safe_load(file)
 
 # create a timestamped result dir
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-result_dir = Path(__file__).parent / f"result_{timestamp}"
+result_dir = Path(__file__).parent / f"task1_result_{timestamp}"
 result_dir.mkdir()
 
 # parse parameters

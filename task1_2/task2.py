@@ -1,9 +1,10 @@
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import yaml
-from sklearn.linear_model import Lasso
+from sklearn.linear_model import lasso_path
 
 from generate_data import generate_data
 from plot_results import plot_lasso_results
@@ -11,7 +12,7 @@ from test_metrics import calculate_metrics
 
 
 # Read the shared Task 1 and Task 2 configuration.
-config_path = Path(__file__).with_name("task1_2.yaml")
+config_path = Path(__file__).with_name("task2.yaml")
 with config_path.open("r", encoding="utf-8") as file:
     config = yaml.safe_load(file)
 
@@ -60,21 +61,33 @@ for replication in range(n_replications):
         p1 = int(cq * t_train)
         q = p1 / p
         selected_features = permutation[:p1]
-        x_train_observed = x_train[:, selected_features]
+        # Coordinate descent is fastest with a Fortran-contiguous design.
+        # Construct it once rather than letting every alpha fit copy X.
+        x_train_observed = np.asfortranarray(
+            x_train[:, selected_features]
+        )
         x_test_observed = x_test[:, selected_features]
 
-        # Descending alpha values allow warm starts from sparse to denser fits.
-        model = Lasso(
-            fit_intercept=False,
+        # Solve the complete regularization path in one call. The solver sorts
+        # alpha from large to small and warm-starts each denser solution from
+        # the preceding sparse solution. Avoid a P1-by-P1 Gram matrix because
+        # P1 reaches 5,000 while T_train is only 500.
+        path_alphas, path_coefficients, _ = lasso_path(
+            x_train_observed,
+            y_train,
+            alphas=np.asarray(alpha_grid),
+            precompute=False,
+            copy_X=False,
             max_iter=max_iter,
             tol=tolerance,
-            selection="cyclic",
-            warm_start=True,
+            selection="random",
+            random_state=current_seed,
         )
-        for alpha in sorted(alpha_grid, reverse=True):
-            model.set_params(alpha=alpha)
-            model.fit(x_train_observed, y_train)
-            beta_hat = model.coef_.copy()
+
+        for alpha, beta_hat in zip(
+            path_alphas,
+            path_coefficients.T,
+        ):
             metrics = calculate_metrics(
                 x_test_observed,
                 y_test,
@@ -89,8 +102,6 @@ for replication in range(n_replications):
                     "q": q,
                     "p1": p1,
                     "alpha": alpha,
-                    "n_iter": model.n_iter_,
-                    "n_nonzero": int((beta_hat != 0).sum()),
                     **metrics,
                 }
             )
