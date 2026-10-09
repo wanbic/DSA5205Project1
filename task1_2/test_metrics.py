@@ -7,8 +7,16 @@ def calculate_metrics(x_test, y_test, beta_hat):
 
     r2_paper = 1 - np.mean((y_test - predictions) ** 2) / np.mean(y_test**2)
     expected_timing_return = np.mean(timing_returns)
-    sharpe_paper = expected_timing_return / np.sqrt(np.mean(timing_returns**2))
-    sharpe_variance = expected_timing_return / np.std(timing_returns)
+    timing_second_moment = np.mean(timing_returns**2)
+    timing_std = np.std(timing_returns)
+    sharpe_paper = (
+        expected_timing_return / np.sqrt(timing_second_moment)
+        if timing_second_moment > 0
+        else 0.0
+    )
+    sharpe_variance = (
+        expected_timing_return / timing_std if timing_std > 0 else 0.0
+    )
     beta_norm_squared = np.sum(beta_hat**2)
 
     return {

@@ -32,7 +32,7 @@ Following Kelly, Malamud, and Zhou~\cite{kelly2024}, returns are generated as
 \end{equation}
 The vector $\beta^*$ is drawn from an isotropic Gaussian distribution and normalized so that $\|\beta^*\|_2^2=b^*=0.2$. The data-generating complexity is fixed at $c=P/T_{\mathrm{tr}}=10$. In each replication, one random permutation of the $P$ columns is held fixed across the full grid. For a given revealed fraction $q$, only the first $P_1=qP$ permuted columns are observed, so observed complexity is $cq=P_1/T_{\mathrm{tr}}$. This nested observation rule creates misspecification while preserving the sufficiently mixed setting.
 
-The simulation parameters are listed in Table~\ref{tab:task1-parameters}. Data generation is implemented by \texttt{generate\_data()} in \texttt{task1/generate\_data.py}; the experiment loop and nested feature selection are in \texttt{task1/task1.py}.
+The simulation parameters are listed in Table~\ref{tab:task1-parameters}. Data generation is implemented by \texttt{generate\_data()} in \path{task1_2/generate_data.py}; the experiment loop and nested feature selection are in \path{task1_2/task1.py}.
 
 \begin{table}[htbp]
     \centering
@@ -58,7 +58,7 @@ For each observed block, ridge is estimated without an intercept:
     \widehat\beta(z)
     =\left(X'X+zT_{\mathrm{tr}}I\right)^{-1}X'y.
 \end{equation}
-At $z=0$, the implementation uses the Moore--Penrose pseudoinverse. For $z>0$, it solves the primal system when $P_1\leq T_{\mathrm{tr}}$ and the equivalent dual system otherwise; see \texttt{fit\_ridge()} in \texttt{task1/fit\_ridge.py}.
+At $z=0$, the implementation uses the Moore--Penrose pseudoinverse. For $z>0$, it solves the primal system when $P_1\leq T_{\mathrm{tr}}$ and the equivalent dual system otherwise; see \texttt{fit\_ridge()} in \path{task1_2/fit_ridge.py}.
 
 All quantities are evaluated on the independent test set. With $\widehat R_{t+1}=S_t'\widehat\beta$ and timing return $R^\pi_{t+1}=\widehat R_{t+1}R_{t+1}$, the reported metrics are
 \begin{align}
@@ -73,7 +73,7 @@ R^2_{\mathrm{paper}}
 \qquad
 \|\widehat\beta(z)\|_2.
 \end{align}
-Their sample analogues are computed by \texttt{calculate\_metrics()} in \texttt{task1/test\_metrics.py}.
+Their sample analogues are computed by \texttt{calculate\_metrics()} in \path{task1_2/test_metrics.py}.
 
 \subsection{Results}
 
@@ -90,32 +90,35 @@ so $z=50$ is exactly optimal at $q=1$ and is close to the theoretical range over
 \begin{figure}[htbp]
     \centering
     \begin{subfigure}[t]{0.49\textwidth}
-        \includegraphics[width=\linewidth]{task1/result_20261007_202024/r2_paper_vs_cq.png}
+        \includegraphics[width=\linewidth]{task1_2/result_20261007_202024/r2_paper_vs_cq.png}
         \caption{$R^2_{\mathrm{paper}}$.}
     \end{subfigure}
     \hfill
     \begin{subfigure}[t]{0.49\textwidth}
-        \includegraphics[width=\linewidth]{task1/result_20261007_202024/expected_timing_return_vs_cq.png}
+        \includegraphics[width=\linewidth]{task1_2/result_20261007_202024/expected_timing_return_vs_cq.png}
         \caption{Expected timing return.}
     \end{subfigure}
 
     \begin{subfigure}[t]{0.49\textwidth}
-        \includegraphics[width=\linewidth]{task1/result_20261007_202024/sharpe_paper_vs_cq.png}
+        \includegraphics[width=\linewidth]{task1_2/result_20261007_202024/sharpe_paper_vs_cq.png}
         \caption{Paper Sharpe ratio.}
     \end{subfigure}
     \hfill
     \begin{subfigure}[t]{0.49\textwidth}
-        \includegraphics[width=\linewidth]{task1/result_20261007_202024/beta_norm_vs_cq.png}
+        \includegraphics[width=\linewidth]{task1_2/result_20261007_202024/beta_norm_vs_cq.png}
         \caption{Coefficient norm.}
     \end{subfigure}
-    \caption{Finite-sample counterparts of Figures 4--6 in Kelly, Malamud, and Zhou~\cite{kelly2024}, averaged over 50 replications. The dashed line marks $cq=1$; displayed axes clip the interpolation extremes. All four panels are produced by \texttt{plot\_results()} in \texttt{task1/plot\_results.py} from \texttt{results.csv}.}
+    \caption{Finite-sample counterparts of Figures 4--6 in Kelly, Malamud, and Zhou~\cite{kelly2024}, averaged over 50 replications. The dashed line marks $cq=1$; displayed axes clip the interpolation extremes. All four panels are produced by \texttt{plot\_results()} in \texttt{task1\_2/plot\_results.py} from \texttt{results.csv}.}
     \label{fig:task1-results}
 \end{figure}
 
 \section{Task 2: Alternative Model}
 
 \subsection{Method and experimental control}
-% Describe the proposed model and explain how the Task 1 data, splits, and cq grid are reused.
+Task~2 is implemented in \path{task1_2/task2.py} and reads the shared
+configuration in \path{task1_2/task1_2.yaml}. For every replication it
+reuses the Task~1 seed, data-generating process, train/test split, fixed feature
+permutation, and $cq$ grid, replacing ridge regression with Lasso regression.
 
 \subsection{Results and comparison with ridge}
 % Report the same four metrics and explain deviations from the ridge benchmark.

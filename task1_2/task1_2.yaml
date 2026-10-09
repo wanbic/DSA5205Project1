@@ -31,3 +31,16 @@ ridge_z_grid:
   - 1.0
   - 10.0
   - 50.0
+
+# sklearn Lasso objective:
+# (1 / (2 * T_train)) * ||y - X beta||_2^2 + alpha * ||beta||_1
+lasso_alpha_grid:
+  - 0.0001
+  - 0.0003
+  - 0.001
+  - 0.003
+  - 0.01
+  - 0.03
+
+lasso_max_iter: 10000
+lasso_tolerance: 0.0001
