@@ -201,13 +201,150 @@ $\ell_2$ penalty retains and stabilizes them.
     \label{fig:task2-results}
 \end{figure}
 
+\clearpage
 \section{Task 3: Predictions for Data Sets A, B, and C}
 
 \subsection{Validation and model selection}
-% Document feature checks, internal validation, candidate models, and the selection rule.
+
+For each data set, the time index is excluded from the predictor matrix and
+the last 20\% of the labeled observations are retained as a chronological
+validation block. This gives 120 validation observations for A, 48 for B,
+and 72 for C. Ridge, Lasso, and a one-hidden-layer neural network are fitted
+on the preceding observations and evaluated using the same four criteria as
+in Tasks~1 and 2. The primary selection criterion is fixed in advance as
+$R^2_{\mathrm{paper}}$; expected timing return and the two Sharpe measures
+are retained as economic diagnostics. Fixing one selection rule is important
+because choosing a different model or parameter for whichever metric happens
+to look strongest would add another layer of validation overfitting,
+especially for B and C, whose holdout blocks are small.
+
+The initial grids identify the relevant region for each estimator. The
+selected model is then exploited in three successively narrower searches,
+reported in Table~\ref{tab:task3-exploit}. Each round centers the next grid on
+the preceding maximizer of $R^2_{\mathrm{paper}}$. The search is stopped after
+the third round because the remaining differences are small relative to the
+size of the validation blocks. After selection, the chosen specification is
+refitted on all labeled observations and used to produce the hidden-data
+predictions.
+
+\begin{table}[htbp]
+    \centering
+    \small
+    \caption{Task 3 hyperparameter exploitation rounds.}
+    \label{tab:task3-exploit}
+    \begin{tabular}{clllr}
+        \toprule
+        Data set & Model & Round & Search grid & Best parameter \\
+        \midrule
+        A & Ridge & 1 & $z\in[1.5,5.0]$ & $4.0$ \\
+        A & Ridge & 2 & $z\in[3.4,4.6]$, step $0.2$ & $3.8$ \\
+        A & Ridge & 3 & $z\in[3.65,3.95]$, step $0.05$ & $3.75$ \\
+        \midrule
+        B & Lasso & 1 & $\alpha\in[0.10,0.14]$, step $0.005$ & $0.120$ \\
+        B & Lasso & 2 & $\alpha\in[0.116,0.124]$, step $0.002$ & $0.122$ \\
+        B & Lasso & 3 & $\alpha\in[0.1200,0.1240]$, step $0.0005$ & $0.1215$ \\
+        \midrule
+        C & Lasso & 1 & $\alpha\in[0.15,0.21]$, step $0.01$ & $0.1900$ \\
+        C & Lasso & 2 & $\alpha\in[0.1800,0.2000]$, step $0.0025$ & $0.1875$ \\
+        C & Lasso & 3 & $\alpha\in[0.1850,0.1900]$, step $0.0005$ & $0.1865$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\paragraph{Data set A.}
+Data set A has 600 observations and 600 predictors. Ridge is the only
+candidate model with positive validation $R^2_{\mathrm{paper}}$. The final
+local search has a broad, nearly flat maximum over $z=3.7$--$3.9$, with the
+largest value, $0.042628$, at $z=3.75$. This flatness supports selecting the
+interior value rather than extending the search to an unnecessarily precise
+decimal. The corresponding timing return and paper Sharpe are $0.056045$ and
+$0.171803$. In comparison, the best Lasso specification in the candidate
+experiment has $R^2_{\mathrm{paper}}=-0.010871$ and negative timing and Sharpe
+measures. The selected neural network has a positive timing return of
+$0.144969$ but $R^2_{\mathrm{paper}}=-0.105352$, indicating that its output
+scale is poorly calibrated despite some directional information. Ridge
+therefore gives the best balance of prediction accuracy and economically
+positive timing performance for A.
+
+\pagebreak
+\paragraph{Data set B.}
+Data set B is strongly overparameterized, with 240 observations and 2400
+predictors. Lasso is preferred because its coordinate-wise shrinkage can
+discard irrelevant predictors rather than retaining all 2400 directions.
+The three exploitation rounds move the local maximizer from $0.120$ to
+$0.122$ and finally to $\alpha=0.1215$. At this value,
+$R^2_{\mathrm{paper}}=0.001634$, expected timing return is $0.059076$, and the
+paper Sharpe is $0.199729$. The nearby value $\alpha=0.120$ has marginally
+higher timing and Sharpe measures but marginally lower
+$R^2_{\mathrm{paper}}$; $0.1215$ is retained to preserve the pre-specified
+selection rule. Ridge produces $R^2_{\mathrm{paper}}=-0.061635$ together with
+negative timing and Sharpe measures, while the selected neural network gives
+$R^2_{\mathrm{paper}}=-0.465629$. Thus the choice of Lasso is not based only
+on a fine difference inside its local grid: it also dominates the alternative
+model classes on validation prediction accuracy and both economic metrics.
+
+\paragraph{Data set C.}
+Data set C contains 360 observations and 1800 predictors, so sparsity is again
+more plausible than a dense unrestricted fit. The first Lasso experiment used
+$\alpha=0.15$ and produced $R^2_{\mathrm{paper}}=-0.001020$; a much stronger
+penalty, $\alpha=0.30$, eliminated every coefficient and reduced the model to
+the zero-prediction benchmark. Expanding and then narrowing the non-degenerate
+region yields $\alpha=0.1865$, where $R^2_{\mathrm{paper}}=0.004597$ and all
+three economic metrics are positive. By contrast, the best Ridge candidate
+has $R^2_{\mathrm{paper}}=-0.073618$ and negative timing performance, and the
+selected neural network has $R^2_{\mathrm{paper}}=-0.724517$. The final Lasso
+penalty therefore represents the interior compromise between the noisy,
+weakly penalized solutions and the all-zero solution generated by excessive
+shrinkage.
 
 \subsection{Final models and prediction files}
-% State the selected model and settings for A, B, and C, plus exact output filenames.
+
+Table~\ref{tab:task3-validation} records the specifications selected under
+the common validation rule. The reported prediction files are generated only
+after refitting these specifications on the full labeled samples; their row
+counts agree with the corresponding hidden feature files, as shown in
+Table~\ref{tab:task3-predictions}.
+
+\begin{table}[htbp]
+    \centering
+    \small
+    \caption{Task 3 final validation results selected by
+    $R^2_{\mathrm{paper}}$.}
+    \label{tab:task3-validation}
+    \begin{tabular}{clrrrrr}
+        \toprule
+        Data set & Model and parameter & $R^2_{\mathrm{paper}}$
+        & $\mathbb E[R^\pi]$ & SR$_{\mathrm{paper}}$
+        & SR$_{\mathrm{variance}}$ & $\|\widehat\beta\|_2$ \\
+        \midrule
+        A & Ridge, $z=3.75$
+        & $0.042628$ & $0.056045$ & $0.171803$ & $0.174396$ & $0.233292$ \\
+        B & Lasso, $\alpha=0.1215$
+        & $0.001634$ & $0.059076$ & $0.199729$ & $0.203836$ & $0.320890$ \\
+        C & Lasso, $\alpha=0.1865$
+        & $0.004597$ & $0.003104$ & $0.091762$ & $0.092151$ & $0.037342$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+    \centering
+    \small
+    \caption{Task 3 final prediction files.}
+    \label{tab:task3-predictions}
+    \begin{tabular}{clp{0.62\textwidth}}
+        \toprule
+        Data set & Observations & Prediction file \\
+        \midrule
+        A & $1000$ &
+        \path{task3/A_ridge_result_20261010_155038/predictions_A.csv} \\
+        B & $4000$ &
+        \path{task3/B_lasso_result_20261010_155133/predictions_B.csv} \\
+        C & $2000$ &
+        \path{task3/C_lasso_result_20261010_155221/predictions_C.csv} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
 \section{Task 4: Generalization and Overfitting in Neural Networks}
 

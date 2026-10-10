@@ -1,0 +1,23 @@
+# Select A, B, or C.
+dataset: C
+
+# Use the final 20% of the training file as an internal validation block.
+validation_fraction: 0.20
+selection_metric: r2_paper
+seed: 5205
+
+lasso_alpha_grid:
+  - 0.1850
+  - 0.1855
+  - 0.1860
+  - 0.1865
+  - 0.1870
+  - 0.1875
+  - 0.1880
+  - 0.1885
+  - 0.1890
+  - 0.1895
+  - 0.1900
+
+lasso_max_iter: 5000
+lasso_tolerance: 0.0001

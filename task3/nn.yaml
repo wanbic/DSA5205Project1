@@ -1,0 +1,22 @@
+# Select A, B, or C.
+dataset: C
+
+# Use the final 20% of the training file as an internal validation block.
+validation_fraction: 0.20
+selection_metric: r2_paper
+seed: 5205
+
+hidden_units_grid:
+  - 2
+  - 3
+  - 5
+  - 8
+  - 10
+  - 15
+  - 20
+  - 30
+  - 50
+
+alpha: 0.01
+learning_rate_init: 0.001
+max_iter: 1000
