@@ -1,0 +1,24 @@
+seed: 5205
+n_replications: 5
+
+# n / (m * d), matching the paper's sample ratio alpha.
+input_dimension: 20
+hidden_units: 32
+sample_ratio: 0.3
+t_validation: 2000
+t_test: 5000
+
+# tau = 0 is a noiseless control; tau = 0.3 matches Figure 4.
+noise_std_grid:
+  - 0.0
+  - 0.1
+  - 0.2
+  - 0.3
+  - 0.4
+  - 0.5
+
+# The paper uses batch size 100 and learning rate 0.1.
+batch_size: 100
+learning_rate: 0.1
+max_steps: 10000
+n_checkpoints: 80

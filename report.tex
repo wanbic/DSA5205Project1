@@ -349,10 +349,152 @@ Table~\ref{tab:task3-predictions}.
 \section{Task 4: Generalization and Overfitting in Neural Networks}
 
 \subsection{Main finding of Montanari and Urbani}
-% Summarize the dynamical decoupling result in self-contained language.
+
+Montanari and Urbani~\cite{montanari2025} study gradient-based training of a
+wide two-layer network,
+\begin{equation}
+    f(x;\theta)=\frac{1}{m}\sum_{j=1}^{m}a_j\sigma(w_j'x),
+\end{equation}
+on noisy data whose predictable component depends on a low-dimensional latent
+projection. Their main discovery is a separation of learning time scales. With
+small-complexity mean-field initialization, the network first learns the
+latent feature: training and test errors fall together while the
+generalization gap remains small. On a much longer time scale, the magnitude
+of the second-layer weights grows, the training error continues toward zero,
+and the network begins fitting sample-specific noise. The test error then
+rises and the learned first-layer representation can move away from the true
+latent direction, a phenomenon the authors call \emph{feature unlearning}.
+
+This mechanism connects feature learning and lazy or kernel-like training in
+one trajectory. Early stopping is therefore not merely a generic penalty on
+the number of updates. It selects the earlier low-complexity representation
+before the network reaches the high-complexity interpolation regime. The
+paper further predicts that, at fixed sample ratio $\alpha=n/(md)$, the onset
+of overfitting is delayed as width $m$ increases. This statement is distinct
+from increasing width at a fixed data set, because holding $\alpha$ constant
+also increases $n$.
+
+\subsection{Finite-sample experiment}
+
+I test the mechanism in a synthetic return-prediction problem. Characteristics
+$x_t\in\mathbb R^{20}$ are standard Gaussian and the next-period return is
+\begin{equation}
+    R_{t+1}=\sigma(u'x_t)+\varepsilon_{t+1},
+    \qquad \varepsilon_{t+1}\sim\mathcal N(0,\tau^2),
+\end{equation}
+where $u$ is a randomly drawn unit vector and
+\begin{equation}
+    \sigma(z)=\sqrt{0.9}z+\frac{z^3-3z}{6}.
+\end{equation}
+This is the single-index design used in the paper's Figure~4 and implies
+$h(q)=0.9q+q^3/6$. The student network has $m=32$ hidden units. Setting
+$\alpha=n/(md)=0.3$ gives $n=192$ training observations; independent
+validation and test sets contain $2000$ and $5000$ observations. The noise
+grid is $\tau\in\{0,0.1,0.2,0.3,0.4,0.5\}$, with five replications at each
+level.
+
+First-layer weights are initialized as normalized Gaussian vectors and are
+projected back to the unit sphere after every update; all second-layer weights
+start at $a_j=1$. I use SGD for $10{,}000$ updates with batch size $100$,
+learning rate $0.1$, and no explicit regularization. The DGP and activation
+are implemented by \texttt{generate\_data()} and \texttt{activation()} in
+\path{task4/generate_data.py}; the update equations and checkpoint loop are in
+\path{task4/task4.py}. At each checkpoint I record train, validation, and test
+half-MSE, the complexity proxy
+\begin{equation}
+    C(t)=\frac{1}{m}\sum_{j=1}^m |a_j(t)|,
+\end{equation}
+and signal alignment
+\begin{equation}
+    A(t)=\operatorname{Corr}^2\!\left(
+        f(X_{\mathrm{te}};\theta_t),\sigma(X_{\mathrm{te}}u)
+    \right).
+\end{equation}
+The latter measures retention of the true predictable component rather than
+alignment with noisy realized returns. Metrics and figures are produced by
+\path{task4/test_metrics.py} and \path{task4/plot_results.py}.
+
+\subsection{Results}
+
+Figure~\ref{fig:task4-dynamics} shows a noise-dependent separation between
+feature learning and overfitting. During the first few hundred updates,
+training and test errors decline together and signal alignment rises from
+approximately zero to above $0.9$. With $\tau=0$ or $0.1$, test error continues
+to improve through update $10{,}000$. From $\tau=0.2$ onward, it instead has a
+U-shape, and the minimizing checkpoint occurs progressively earlier as noise
+increases. Table~\ref{tab:task4-results} quantifies this pattern.
+
+At the paper's $\tau=0.3$, average test half-MSE is minimized at update $2774$
+and then rises by $10.1\%$ by update $10{,}000$. Meanwhile, final training
+half-MSE is $0.0168$, well below the unpredictable-noise benchmark
+$\tau^2/2=0.045$. The network must therefore be fitting part of the realized
+training noise rather than only learning the population signal. Over the same
+late interval, complexity reaches $1.598$ and signal alignment falls from its
+peak of $0.946$ to $0.929$. At $\tau=0.5$, the test-error increase is $13.4\%$,
+complexity reaches $2.063$, and alignment declines to $0.863$. The noiseless
+control has no test-error reversal and ends with alignment $0.982$. Together,
+these comparisons give finite-sample evidence consistent with the paper's
+mechanism: more label noise moves the useful stopping point earlier and makes
+late complexity growth and feature unlearning more pronounced.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{task4/task4_result_20261010_192233/training_dynamics.png}
+    \caption{Training dynamics averaged over five replications. Solid and
+    dashed curves in the upper-left panel are training and test half-MSE. The
+    remaining panels report the generalization gap, second-layer complexity,
+    and alignment with the noiseless latent signal. The horizontal axis is
+    shown on a log scale.}
+    \label{fig:task4-dynamics}
+\end{figure}
+
+\clearpage
+\begin{table}[htbp]
+    \centering
+    \small
+    \caption{Noise, early stopping, and late-training outcomes. The test-error
+    increase compares update $10{,}000$ with the minimum of the mean test
+    curve.}
+    \label{tab:task4-results}
+    \begin{tabular}{rrrrrr}
+        \toprule
+        $\tau$ & Best update & Best test half-MSE & Increase & Final $C(t)$
+        & Final $A(t)$ \\
+        \midrule
+        $0.0$ & $10000$ & $0.0133$ & $0.0\%$  & $1.247$ & $0.982$ \\
+        $0.1$ & $10000$ & $0.0223$ & $0.0\%$  & $1.290$ & $0.975$ \\
+        $0.2$ & $4968$  & $0.0473$ & $3.6\%$  & $1.415$ & $0.956$ \\
+        $0.3$ & $2774$  & $0.0811$ & $10.1\%$ & $1.598$ & $0.929$ \\
+        $0.4$ & $2197$  & $0.1255$ & $12.7\%$ & $1.819$ & $0.897$ \\
+        $0.5$ & $1740$  & $0.1801$ & $13.4\%$ & $2.063$ & $0.863$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
 \subsection{Implication for financial machine learning}
-% Develop one focused application, argument, or experiment, including limitations.
+
+The experiment interprets $u'x_t$ as a latent return factor and $\tau$ as the
+strength of idiosyncratic return noise. Its practical implication is that a
+falling in-sample loss is weak evidence that a return-prediction network is
+still discovering tradable structure. In the noisy cases, training continues
+to improve after out-of-sample accuracy has peaked, while the network becomes
+more complex and less aligned with the population signal. A financial
+workflow should therefore use a chronological validation block for early
+stopping and should monitor prediction stability or weight growth alongside
+training loss. The preferred checkpoint should be selected on validation
+data; the test set in this experiment is used only for ex-post evaluation.
+
+The evidence is deliberately qualitative. The network is much smaller than
+the asymptotic model, the late-stage training error is small but not exactly
+zero, and only one width is studied, so the experiment does not test the
+paper's scaling law in $m$. The observed decline in alignment supports feature
+unlearning but does not establish the full DMFT mechanism. Finally, the data
+are i.i.d. Gaussian with one stable latent factor. Actual returns have weak
+and changing signals, dependence, heavy tails, and trading costs, all of
+which make validation design more difficult. These limitations strengthen,
+rather than weaken, the practical case for conservative early stopping, but
+they prevent interpreting the numerical thresholds as direct prescriptions
+for a live strategy.
 
 \section{Task 5: Video and Reproducibility}
 
